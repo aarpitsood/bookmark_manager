@@ -1,0 +1,337 @@
+<div class="title_wrapper">
+    <div class="fix">
+        <div>
+            <div class="title">
+                Bookmark Manager
+            </div>
+            <div class="search">
+                <form style="align:right;" action="" onsubmit="$(this).children('#search_button').trigger('click'); return false;">
+                    <input id="new_button" type="button" value="Add a Bookmark" />
+                    <input style="display:none;" id="reset_button" type="button" value="Reset"/>
+                    <input id="search_keyword" type="text" value="" />
+                    <input id="search_button" type="button" value="Search" />
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="body_wrapper">
+
+    <div class="fix">
+        <div>
+            <div class="search_label">
+                Bookmarks
+            </div>
+            <div class="search_result">
+            </div>
+        </div>
+    </div>
+    
+    <div class="list">
+            <table border="0" cellspacing="0" class="header">
+                <tr>
+                    <th>
+                        Site
+                    </th>
+                    <th>
+                        Tags
+                    </th>
+                    <th>
+                        Added By
+                    </th>
+                    <th>
+                    </th>
+                </tr>
+            </table>
+        
+            <div class="lock">
+            <table border="0" cellspacing="0" class="data">
+            </table>
+            </div>
+        </div>
+</div>
+
+<div class="lightbox_wrapper" style="display:none;">
+    <div class="lightbox">
+        <div class="close">
+            Close
+        </div>
+        <div class="heading">
+            New Bookmark
+        </div>
+        <div class="hr" ></div>
+        <div class="new_form">
+        
+            <table class="box_table">
+                <tr>
+                    <td>
+                        <label for="b_title">Title </label> 
+                    </td>
+                    <td> : </td>
+                    <td>
+                        <input id="b_title" type="text" value="" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="b_link">Link </label>
+                    </td>
+                    <td> : </td>
+                    <td>
+                        <input id="b_link" type="text" value="" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="b_tag">Tags <font size="1">(separated by , )</font></label>
+                    </td>
+                    <td> : </td>
+                    <td>
+                        <input id="b_tag" type="text" value="" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="b_username">Username </label>
+                    </td>
+                    <td> : </td>
+                    <td>
+                        <input id="b_username" type="text" value="" />
+                    </td>
+                </tr>            
+            </table>
+            
+            <div style="height:10px; display:block;">
+            </div>
+            <input id="new_bookmark" type="button" value="Save Bookmark" />
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+                &copy; 2012 - Developed by Arpit Sood, IIIT Hyderabad
+</div>
+
+<%= raw @template %>
+
+<script type="text/javascript">
+
+	var Bookmark = Backbone.Model.extend({
+		
+		initialize : function() {
+			console.log("New Bookmark Model Initializing");
+		},
+		clear : function(){
+			Bookmarks.remove(this.id);
+			this.destroy({
+				"url" : "/bookmarks/destroy/"+this.id,
+				"type" : "Delete" 
+			});
+		},		
+		getLink : function(){
+			return this.get("link");
+		}
+	});
+	
+	var BookmarkList = Backbone.Collection.extend({
+
+		model : Bookmark,
+
+		url : "/bookmarks",
+                
+		initialize : function(){
+			console.log("New BookmarkList Intializing");
+		},
+
+		search : function(key){
+			console.log("Bookmarklist.search() with key = " + key);
+			var count = 0;
+			this.each(function(temp){
+				tag = String(temp.attributes.tag).split(",");
+				var state = 0;
+				for(i = 0; i < tag.length; i++)
+				{
+
+					if( tag[i].trim() == key )
+					{	
+						$("td input[value="+temp.attributes.id+"]").parent().parent().fadeIn(200);
+						count++;
+						state = 1;
+						break;
+					}
+				}
+				if(state == 0)
+				{
+					$("td input[value="+temp.attributes.id+"]").parent().parent().fadeOut(200);
+				}
+			});
+			
+			if(count==0)
+				$('table.header').fadeOut(200);
+			else
+				$('table.header').fadeIn(200);
+		
+			$('div.search_label').html("Search Results");
+			$('div.search_result').html(": &nbsp; &nbsp; " + count + " Bookmarks Found");
+			
+			$('#new_button').hide();
+			$('#reset_button').show();
+		},	
+	
+		refresh : function(){
+			console.log("Refreshing Bookmarklist.refresh()");
+			this.each(function(temp){
+				$("td input[value="+temp.attributes.id+"]").parent().parent().fadeIn(200);
+			});
+			
+			$('div.search_label').html("Bookmarks ");
+			$('div.search_result').html("");
+			$('table.header').show();
+			$('#reset_button').hide();
+			$('#new_button').show();
+		}
+	});
+	
+	var Bookmarks = new BookmarkList();
+	
+	var BookmarkView = Backbone.View.extend({
+	
+		tagName: "tr",
+		
+		template: _.template($('#bookmark-template').html()),
+		
+		events: {
+			"click td.remove" : "clear",
+			"click td:not(:nth-child(5))" : "open_link",
+		},
+
+		initialize: function() {
+			console.log("Binding inside BookmarkView() ");
+			this.model.bind('destroy', this.remove({"id": this.model.get("id")},{'url': '/bookmarks/destroy'}), this);
+			this.model.bind('hide', this.hide, this);
+		},
+
+		render: function(){
+			console.log("Rendering View from BookmarkView.render()");
+			this.$el.html(this.template(this.model.toJSON()));
+			return this;
+		},
+
+		hide: function(){
+			console.log("BookmarkView.hide() called");
+			this.$el.fadeOut(200);
+		},
+
+		clear: function(){
+			console.log("BookmarkView.clear() called ");
+			this.$el.fadeOut(200);
+			this.model.clear();
+		},
+		open_link : function(){
+			console.log("Bookmark Clicked");
+			window.open(this.model.getLink(), '_blank');
+		}
+	
+	});
+	
+	var isAdd = 0;
+	
+	var AppView = Backbone.View.extend({
+		
+		el:$('body'),
+
+		initialize: function(){
+			isAdd = 0;
+			console.log("App Initialized");
+			Bookmarks.bind('add',this.mark_add);
+			Bookmarks.bind('sync',this.add_on_save,this);
+			Bookmarks.bind('reset',this.addAll,this);
+			Bookmarks.fetch();			
+		},
+
+		events: {
+			"click #new_bookmark" : "append",
+			"click #search_button" : "search_key",
+			"click #reset_button" : "refresh_list"
+		},
+
+		add_new: function(bookmark){
+			console.log("Adding New Bookmark");
+			var view = new BookmarkView({model : bookmark});
+			$('table.data').append(view.render().el);
+			isAdd = 0;
+		},
+
+		addAll : function(){
+			Bookmarks.each(this.add_new);
+		},
+
+		mark_add: function(){
+			isAdd = 1;
+		},
+
+		add_on_save: function(bookmark){
+			if (isAdd == 1)
+				this.add_new(bookmark)
+		},
+
+		append : function(){
+			console.log("BookmarkView.append() called to add a row");
+			var item = ['b_title','b_link','b_tag','b_username'];
+			var state = 0;
+			for(i=0 ; i<4; i++)
+			{
+				if($('.new_form #'+item[i]).val()== "")
+				{
+					$('.new_form label[for='+item[i]+']').css('color','red');
+					state = 1;
+				}
+			}
+
+			if(state == 1)
+			{
+				console.log("One of the parameters is empty");
+				return;
+			}
+				
+			if($('.new_form #b_link').val().indexOf("http") < 0)
+			{
+				$('.new_form #b_link').val("http://" + $('.new_form #b_link').val());
+			}
+
+			Bookmarks.create({
+				"id"	: "",
+				"title" : $('.new_form #b_title').val(),
+				"link" : $('.new_form #b_link').val(),
+				"tag" : $('.new_form #b_tag').val(),
+				"username" : $('.new_form #b_username').val(),
+			},{ 
+					"url" : "/bookmarks/create", 
+					"type" : "PUT"
+				});
+			
+			$('.lightbox .close').trigger('click');
+			$('.new_form input[type=text]').val("");
+		},
+
+		search_key : function(){
+			if($('#search_keyword').val() == "")
+				$('label[for=search_keyword]').css('color','red');
+			else
+				$('label[for=search_keyword]').css('color','#333');
+			Bookmarks.search($('#search_keyword').val());
+		},
+
+		refresh_list : function(){
+			Bookmarks.refresh();
+		}
+
+	});
+	
+$(function(){
+	console.log("App variable declared");
+	var app = new AppView();
+});
+
+</script>
